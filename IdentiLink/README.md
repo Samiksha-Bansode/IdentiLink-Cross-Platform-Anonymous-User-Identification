@@ -85,5 +85,3 @@ trust = 0.5 × authenticity + 0.5 × corroboration
 Fake account:  trust = trust × 0.7
 
 
-### Sentiment
-TextBlob polarity → Positive / Negative / Neutral
