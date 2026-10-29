@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IdentiLink</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Cabinet+Grotesk:wght@400;500;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink: #0a0a0f;
+      --ink2: #12121a;
+      --panel: #16161f;
+      --rim: #252535;
+      --rim2: #2e2e42;
+      --cyan: #00d4c8;
+      --violet: #9b6dff;
+      --amber: #ffb547;
+      --red: #ff4f6b;
+      --green: #3dffa0;
+      --dim: #4a4a6a;
+      --muted: #6a6a8a;
+      --text: #ddddf5;
+      --light: #f0f0ff;
+      --mono: 'DM Mono', monospace;
+      --sans: 'Cabinet Grotesk', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--ink);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.6;
+    }
+
+    .mesh { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .mesh-blob { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.12; }
+    .mesh-blob:nth-child(1) { width: 700px; height: 700px; background: var(--violet); top: -300px; left: -200px; }
+    .mesh-blob:nth-child(2) { width: 500px; height: 500px; background: var(--cyan); bottom: -200px; right: -150px; }
+    .mesh-blob:nth-child(3) { width: 400px; height: 400px; background: var(--violet); top: 40%; left: 60%; }
+
+    .grid-lines {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(155,109,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(155,109,255,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .app {
+      position: relative; z-index: 1;
+      max-width: 860px; margin: 0 auto;
+      padding: 56px 24px 100px;
+    }
+
+    /* Header */
+    header { margin-bottom: 60px; animation: riseIn 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+
+    .wordmark { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .wordmark-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--violet), var(--cyan));
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .wordmark-text { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.04em; color: var(--light); }
+    .wordmark-text span { color: var(--cyan); }
+
+    .header-line { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+    h1 { font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 900; letter-spacing: -0.04em; line-height: 1.05; color: var(--light); }
+    .header-tag {
+      font-family: var(--mono); font-size: 0.7rem; color: var(--cyan);
+      letter-spacing: 0.15em; text-transform: uppercase;
+      border: 1px solid rgba(0,212,200,0.3); border-radius: 4px;
+      padding: 3px 8px; background: rgba(0,212,200,0.06); white-space: nowrap;
+    }
+    .header-desc { margin-top: 12px; font-size: 1.05rem; color: var(--muted); max-width: 500px; line-height: 1.6; }
+
+    /* Connection bar */
+    .conn-bar {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 32px;
+      animation: riseIn 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); transition: background 0.3s, box-shadow 0.3s; flex-shrink: 0; }
+    .conn-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .conn-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .conn-dot.checking { background: var(--amber); animation: pulse 1s infinite; }
+    .conn-status { font-family: var(--mono); font-size: 0.72rem; color: var(--dim); letter-spacing: 0.05em; }
+    .conn-status.online { color: var(--green); }
+    .conn-status.offline { color: var(--red); }
+
+    /* Tabs */
+    .tabs {
+      display: flex; gap: 4px;
+      background: var(--ink2); border: 1px solid var(--rim); border-radius: 12px;
+      padding: 4px; margin-bottom: 28px;
+      animation: riseIn 0.7s 0.15s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .tab {
+      flex: 1; border: none; background: transparent; color: var(--dim);
+      font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .tab.active { background: var(--panel); color: var(--cyan); border: 1px solid var(--rim2); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+
+    /* Card */
+    .card {
+      background: var(--panel); border: 1px solid var(--rim); border-radius: 18px;
+      padding: 32px; animation: riseIn 0.7s 0.2s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .section-label {
+      font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--rim); }
+
+    /* Search */
+    .search-row { display: flex; gap: 10px; align-items: stretch; }
+    .search-wrap { flex: 1; position: relative; }
+    .search-at {
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-family: var(--mono); pointer-events: none; transition: color 0.2s;
+    }
+    .search-input {
+      width: 100%; background: var(--ink2); border: 1px solid var(--rim); border-radius: 12px;
+      color: var(--light); font-family: var(--mono); font-size: 1rem;
+      padding: 15px 48px 15px 38px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,212,200,0.1); }
+    .search-input::placeholder { color: var(--dim); }
+    .search-live {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--cyan);
+      opacity: 0; transition: opacity 0.2s; animation: pulse 1s infinite;
+    }
+    .live-dot.active { opacity: 1; }
+
+    /* Threshold */
+    .filter-row {
+      display: flex; align-items: center; gap: 14px; margin-top: 16px;
+      padding: 14px 16px; background: var(--ink2); border: 1px solid var(--rim); border-radius: 10px;
+    }
+    .filter-label { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+    .filter-label strong { color: var(--cyan); font-weight: 500; }
+    input[type=range] { flex: 1; -webkit-appearance: none; appearance: none; height: 3px; background: var(--rim2); border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--cyan); cursor: pointer; box-shadow: 0 0 8px rgba(0,212,200,0.5); transition: transform 0.15s; }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    .filter-hint { font-family: var(--mono); font-size: 0.68rem; color: var(--dim); white-space: nowrap; }
+
+    /* Results */
+    .results-area { margin-top: 28px; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .results-count { font-family: var(--mono); font-size: 0.72rem; color: var(--dim); }
+    .results-count strong { color: var(--cyan); }
+
+    /* Match card */
+    .match-card {
+      background: var(--ink2); border: 1px solid var(--rim); border-radius: 12px;
+      padding: 16px 20px; margin-bottom: 10px;
+      display: grid; grid-template-columns: 28px 46px 1fr auto;
+      align-items: center; gap: 14px;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .match-card:hover { border-color: var(--rim2); background: rgba(155,109,255,0.05); transform: translateX(3px); }
+    .match-rank { font-family: var(--mono); font-size: 0.68rem; color: var(--dim); text-align: center; }
+    .match-avatar {
+      width: 46px; height: 46px; border-radius: 10px; display: flex;
+      align-items: center; justify-content: center; font-weight: 800;
+      font-size: 1.1rem; color: #fff; flex-shrink: 0;
+    }
+    .match-body { min-width: 0; }
+    .match-username {
+      font-family: var(--mono); font-size: 0.92rem; font-weight: 500; color: var(--light);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .match-username mark { background: rgba(0,212,200,0.2); color: var(--cyan); border-radius: 2px; font-style: normal; }
+    .match-bio { font-size: 0.78rem; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .match-bio mark { background: rgba(0,212,200,0.12); color: var(--text); border-radius: 2px; font-style: normal; }
+    .match-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 4px; border: 1px solid transparent;
+    }
+    .badge-platform { background: rgba(155,109,255,0.12); color: var(--violet); border-color: rgba(155,109,255,0.2); }
+    .badge-platform.twitter { background: rgba(29,161,242,0.1); color: #1da1f2; border-color: rgba(29,161,242,0.2); }
+    .badge-platform.reddit { background: rgba(255,87,0,0.1); color: #ff5700; border-color: rgba(255,87,0,0.2); }
+    .badge-platform.instagram { background: rgba(225,48,108,0.1); color: #e1306c; border-color: rgba(225,48,108,0.2); }
+    .badge-platform.linkedin { background: rgba(0,119,181,0.1); color: #0077b5; border-color: rgba(0,119,181,0.2); }
+    .badge-platform.facebook { background: rgba(66,103,178,0.1); color: #4267b2; border-color: rgba(66,103,178,0.2); }
+    .match-scores { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 80px; }
+    .score-main { font-family: var(--mono); font-size: 1.3rem; font-weight: 500; line-height: 1; }
+    .score-main.high { color: var(--green); }
+    .score-main.mid  { color: var(--amber); }
+    .score-main.low  { color: var(--red); }
+    .mini-bar { width: 64px; height: 2px; background: var(--rim); border-radius: 2px; overflow: hidden; margin-top: 2px; }
+    .mini-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+    /* Skeleton */
+    .skel { background: linear-gradient(90deg, var(--rim) 25%, var(--rim2) 50%, var(--rim) 75%); background-size: 200% 100%; animation: shimmer 1.3s infinite; border-radius: 6px; }
+    .skel-card {
+      background: var(--ink2); border: 1px solid var(--rim); border-radius: 12px;
+      padding: 16px 20px; margin-bottom: 10px;
+      display: grid; grid-template-columns: 28px 46px 1fr 80px; align-items: center; gap: 14px;
+    }
+
+    /* Verdict */
+    .verdict-box { text-align: center; padding: 48px 24px 40px; }
+    .verdict-emoji { font-size: 4rem; line-height: 1; margin-bottom: 16px; display: block; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+    .verdict-label { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; }
+    .verdict-label.real { color: var(--green); }
+    .verdict-label.fake { color: var(--red); }
+    .verdict-sub { margin-top: 10px; font-family: var(--mono); font-size: 0.8rem; color: var(--muted); line-height: 1.7; }
+
+    /* Trust */
+    .trust-wrap { display: flex; flex-direction: column; align-items: center; padding: 40px 20px 32px; gap: 28px; }
+    .trust-ring { position: relative; width: 160px; height: 160px; }
+    .trust-svg { transform: rotate(-90deg); }
+    .trust-bg-circle { fill: none; stroke: var(--rim); stroke-width: 8; }
+    .trust-fg-circle { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s cubic-bezier(0.34,1.56,0.64,1); }
+    .trust-num-wrap { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .trust-num { font-family: var(--mono); font-size: 2.6rem; font-weight: 500; line-height: 1; }
+    .trust-lbl { font-family: var(--mono); font-size: 0.65rem; color: var(--dim); margin-top: 2px; }
+    .trust-stats { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .trust-stat { background: var(--ink2); border: 1px solid var(--rim); border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 110px; }
+    .ts-label { font-family: var(--mono); font-size: 0.62rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; }
+    .ts-val { font-family: var(--mono); font-size: 1rem; font-weight: 500; margin-top: 6px; color: var(--light); }
+
+    /* Action button */
+    .action-btn {
+      background: var(--violet); color: #fff; border: none; border-radius: 12px;
+      padding: 0 24px; font-family: var(--mono); font-size: 0.8rem; font-weight: 500;
+      letter-spacing: 0.08em; cursor: pointer; white-space: nowrap; transition: all 0.2s;
+      flex-shrink: 0; min-width: 90px;
+    }
+    .action-btn:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .action-btn.cyan { background: var(--cyan); color: #000; font-weight: 700; }
+
+    /* Error / empty / prompt */
+    .err-box { background: rgba(255,79,107,0.08); border: 1px solid rgba(255,79,107,0.25); border-radius: 10px; padding: 14px 18px; font-family: var(--mono); font-size: 0.82rem; color: var(--red); display: flex; align-items: flex-start; gap: 10px; }
+    .empty-state { text-align: center; padding: 48px 20px; }
+    .empty-icon { font-size: 3rem; margin-bottom: 14px; }
+    .empty-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .empty-sub { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+    .prompt-state { text-align: center; padding: 48px 20px; }
+    .prompt-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+    .prompt-txt { font-family: var(--mono); font-size: 0.8rem; color: var(--dim); }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    @keyframes slideRight { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+    @keyframes popIn { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    .card-enter { animation: slideRight 0.3s ease both; }
+
+    @media (max-width: 600px) {
+      .match-card { grid-template-columns: 24px 40px 1fr; }
+      .match-scores { display: none; }
+      .filter-row { flex-wrap: wrap; }
+      .trust-stats { flex-direction: column; align-items: center; }
+      .tabs { gap: 2px; }
+      .tab { font-size: 0.65rem; padding: 9px 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="mesh">
+  <div class="mesh-blob"></div>
+  <div class="mesh-blob"></div>
+  <div class="mesh-blob"></div>
+</div>
+<div class="grid-lines"></div>
+
+<div class="app">
+
+  <header>
+    <div class="wordmark">
+      <div class="wordmark-icon">🔗</div>
+      <div class="wordmark-text">Identi<span>Link</span></div>
+    </div>
+    <div class="header-line">
+      <h1>Find the same person.</h1>
+    </div>
+  </header>
+
+  <div class="conn-bar">
+    <div class="conn-dot checking" id="connDot"></div>
+    <span class="conn-status" id="connStatus">connecting…</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="identify" onclick="switchTab('identify')">🔍 Identity Match</button>
+    <button class="tab" data-tab="fake" onclick="switchTab('fake')">🛡️ Fake Detect</button>
+    <button class="tab" data-tab="trust" onclick="switchTab('trust')">📊 Trust Score</button>
+  </div>
+
+  <!-- Identity Match -->
+  <div id="panel-identify" class="panel active">
+    <div class="card">
+      <div class="section-label">username + bio similarity search</div>
+      <div class="search-row">
+        <div class="search-wrap">
+          <span class="search-at">@</span>
+          <input class="search-input" id="identify-q" type="text" placeholder="type a username to search…" autocomplete="off" oninput="handleIdentifyInput(this.value)"/>
+          <div class="search-live">
+            <div class="live-dot" id="live-dot"></div>
+          </div>
+        </div>
+      </div>
+      <div class="results-area" id="identify-results">
+        <div class="prompt-state">
+          <div class="prompt-icon">🔍</div>
+          <div class="prompt-txt">Type a username to find matching accounts</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fake Detection -->
+  <div id="panel-fake" class="panel">
+    <div class="card">
+      <div class="section-label">Fake Account Detector · Behavioural Risk Score</div>
+      <div class="search-row">
+        <div class="search-wrap">
+          <span class="search-at">@</span>
+          <input class="search-input" id="fake-q" type="text" placeholder="enter username to analyse…" autocomplete="off" onkeydown="if(event.key==='Enter') runFake()"/>
+        </div>
+        <button class="action-btn" id="fake-btn" onclick="runFake()">DETECT</button>
+      </div>
+      <div class="results-area" id="fake-results">
+        <div class="prompt-state"><div class="prompt-icon">🛡️</div><div class="prompt-txt">Enter a username and press Detect</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trust Score -->
+  <div id="panel-trust" class="panel">
+    <div class="card">
+      <div class="section-label">trust score engine · composite index</div>
+      <div class="search-row">
+        <div class="search-wrap">
+          <span class="search-at">@</span>
+          <input class="search-input" id="trust-q" type="text" placeholder="enter username to score…" autocomplete="off" onkeydown="if(event.key==='Enter') runTrust()"/>
+        </div>
+        <button class="action-btn cyan" id="trust-btn" onclick="runTrust()">SCORE</button>
+      </div>
+      <div class="results-area" id="trust-results">
+        <div class="prompt-state"><div class="prompt-icon">📊</div><div class="prompt-txt">Enter a username and press Score</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Backend URL — not shown in UI anywhere ──────────────────────────────────
+// Change this constant to your deployed backend URL when going to production
+const API_BASE = 'http://localhost:8000';
+
+// ── Tab switcher ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+}
+
+// ── Backend health check ──────────────────────────────────────────────────────
+async function checkBackend() {
+  const dot = document.getElementById('connDot');
+  const txt = document.getElementById('connStatus');
+  dot.className = 'conn-dot checking';
+  txt.className = 'conn-status';
+  txt.textContent = 'connecting…';
+  try {
+    const res = await fetch(API_BASE + '/', { signal: AbortSignal.timeout(3500) });
+    if (res.ok) {
+      dot.className = 'conn-dot online';
+      txt.className = 'conn-status online';
+      txt.textContent = 'api connected';
+    } else throw new Error();
+  } catch {
+    dot.className = 'conn-dot offline';
+    txt.className = 'conn-status offline';
+    txt.textContent = 'api offline';
+  }
+}
+checkBackend();
+setInterval(checkBackend, 20000);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function scoreClass(p) { return p >= 70 ? 'high' : p >= 40 ? 'mid' : 'low'; }
+function scoreColor(p) { return p >= 70 ? 'var(--green)' : p >= 40 ? 'var(--amber)' : 'var(--red)'; }
+function initials(n) { return (n || '').replace(/[^a-zA-Z]/g,'').slice(0,1).toUpperCase() || '?'; }
+
+const GRADS = [
+  'linear-gradient(135deg,#9b6dff,#00d4c8)',
+  'linear-gradient(135deg,#ff6b6b,#ffd93d)',
+  'linear-gradient(135deg,#6bceff,#9b6dff)',
+  'linear-gradient(135deg,#3dffa0,#00d4c8)',
+  'linear-gradient(135deg,#ff6bce,#9b6dff)',
+];
+function avatarGrad(s) {
+  let h = 0;
+  for (const c of s) h = (h << 5) - h + c.charCodeAt(0);
+  return GRADS[Math.abs(h) % GRADS.length];
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function highlight(text, q) {
+  if (!q || !text) return esc(text || '');
+  const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return esc(text).replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>');
+}
+
+async function apiPost(endpoint, body) {
+  const res = await fetch(API_BASE + endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+// ── Identity Match — debounced live search ────────────────────────────────────
+let searchTimer = null;
+let lastQuery = '';
+
+function handleIdentifyInput(val) {
+  clearTimeout(searchTimer);
+  document.getElementById('live-dot').classList.toggle('active', !!val.trim());
+
+  if (!val.trim()) {
+    lastQuery = '';
+    document.getElementById('identify-results').innerHTML = `
+      <div class="prompt-state">
+        <div class="prompt-icon">🔍</div>
+        <div class="prompt-txt">Type a username to find matching accounts</div>
+      </div>`;
+    return;
+  }
+  searchTimer = setTimeout(() => runIdentify(val.trim()), 380);
+}
+
+function debouncedSearch() {
+  const q = document.getElementById('identify-q').value.trim();
+  if (q) runIdentify(q);
+}
+
+function showSkeletons() {
+  document.getElementById('identify-results').innerHTML = [1,2,3].map(() => `
+    <div class="skel-card">
+      <div class="skel" style="width:20px;height:12px;"></div>
+      <div class="skel" style="width:46px;height:46px;border-radius:10px;"></div>
+      <div>
+        <div class="skel" style="width:50%;height:12px;margin-bottom:8px;"></div>
+        <div class="skel" style="width:75%;height:10px;margin-bottom:6px;"></div>
+        <div class="skel" style="width:30%;height:10px;"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        <div class="skel" style="width:52px;height:22px;"></div>
+        <div class="skel" style="width:64px;height:2px;"></div>
+      </div>
+    </div>`).join('');
+}
+
+async function runIdentify(query) {
+  if (!query || query === lastQuery) return;
+  lastQuery = query;
+  showSkeletons();
+
+  try {
+    const data = await apiPost('/identify', { username: query });
+    document.getElementById('live-dot').classList.remove('active');
+
+    if (data.error) {
+      document.getElementById('identify-results').innerHTML = `<div class="err-box">⚠️ ${esc(data.error)}</div>`;
+      return;
+    }
+    if (!Array.isArray(data) || data.length === 0) {
+      document.getElementById('identify-results').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔎</div>
+          <div class="empty-title">No results for @${esc(query)}</div>
+          <div class="empty-sub">Username not found in the dataset</div>
+        </div>`;
+      return;
+    }
+
+    // Backend already filters (min 30%) and sorts by score.
+    const filtered = data;
+
+    if (filtered.length === 0) {
+      document.getElementById('identify-results').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔕</div>
+          <div class="empty-title">No matches found</div>
+          <div class="empty-sub">No similar accounts were found for this username</div>
+        </div>`;
+      return;
+    }
+
+    const container = document.getElementById('identify-results');
+    container.innerHTML = `
+      <div class="results-header">
+        <span class="results-count"><strong>${filtered.length}</strong> match${filtered.length !== 1 ? 'es' : ''} for <strong>@${esc(query)}</strong></span>
+        <span class="results-count">by similarity</span>
+      </div>
+      ${filtered.map((m, i) => {
+        const pct = m.match_percentage ?? 0;
+        const col = scoreColor(pct);
+        const pc  = (m.platform || '').toLowerCase();
+        return `
+        <div class="match-card card-enter" style="animation-delay:${i * 55}ms">
+          <div class="match-rank">#${i + 1}</div>
+          <div class="match-avatar" style="background:${avatarGrad(m.username || '')}">${initials(m.username)}</div>
+          <div class="match-body">
+            <div class="match-username">@${highlight(m.username, query)}</div>
+            ${m.bio ? `<div class="match-bio">${highlight(m.bio, query)}</div>` : ''}
+            <div class="match-meta">
+              ${m.platform ? `<span class="badge badge-platform ${pc}">${esc(m.platform)}</span>` : ''}
+            </div>
+          </div>
+          <div class="match-scores">
+            <span class="score-main ${scoreClass(pct)}">${pct}%</span>
+            <div class="mini-bar"><div class="mini-fill" style="width:${pct}%;background:${col};"></div></div>
+          </div>
+        </div>`;
+      }).join('')}`;
+
+  } catch (e) {
+    document.getElementById('live-dot').classList.remove('active');
+    document.getElementById('identify-results').innerHTML = `<div class="err-box">⚠️ Cannot reach the API server. Please ensure the backend is running.</div>`;
+  }
+}
+
+// ── Fake Detection ─────────────────────────────────────────────────────────────
+async function runFake() {
+  const username = document.getElementById('fake-q').value.trim();
+  if (!username) return;
+  const btn = document.getElementById('fake-btn');
+  const container = document.getElementById('fake-results');
+  btn.disabled = true; btn.textContent = '…';
+  container.innerHTML = `<div class="prompt-state"><div class="prompt-icon" style="animation:pulse 1s infinite">🛡️</div><div class="prompt-txt">Scoring account risk…</div></div>`;
+
+  try {
+    const data = await apiPost('/fake_detection', { username });
+    if (data.error) { container.innerHTML = `<div class="err-box">⚠️ ${esc(data.error)}</div>`; return; }
+    const isReal = (data.account_type || '').toLowerCase() === 'real';
+    container.innerHTML = `
+      <div class="verdict-box">
+        <span class="verdict-emoji">${isReal ? '✅' : '🚨'}</span>
+        <div class="verdict-label ${isReal ? 'real' : 'fake'}">${isReal ? 'AUTHENTIC' : 'FAKE ACCOUNT'}</div>
+        <div class="verdict-sub">@${esc(username)} — ${isReal
+          ? 'This account exhibits characteristics consistent with a genuine user.'
+          : 'This account shows patterns associated with artificially created profiles.'}</div>
+      </div>`;
+  } catch {
+    container.innerHTML = `<div class="err-box">⚠️ Cannot reach the API server. Please ensure the backend is running.</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'DETECT';
+  }
+}
+
+// ── Trust Score ────────────────────────────────────────────────────────────────
+async function runTrust() {
+  const username = document.getElementById('trust-q').value.trim();
+  if (!username) return;
+  const btn = document.getElementById('trust-btn');
+  const container = document.getElementById('trust-results');
+  btn.disabled = true; btn.textContent = '…';
+  container.innerHTML = `<div class="prompt-state"><div class="prompt-icon" style="animation:pulse 1s infinite">📊</div><div class="prompt-txt">Computing trust index…</div></div>`;
+
+  try {
+    const data = await apiPost('/trust_score', { username });
+    if (data.error) { container.innerHTML = `<div class="err-box">⚠️ ${esc(data.error)}</div>`; return; }
+    const score  = data.trust_score ?? 0;
+    const isReal = (data.account_type || '').toLowerCase() === 'real';
+    const top    = data.top_match || {};
+    const color  = scoreColor(score);
+    const r      = 66;
+    const circ   = 2 * Math.PI * r;
+    const dash   = circ - (score / 100) * circ;
+
+    container.innerHTML = `
+      <div class="trust-wrap">
+        <div class="trust-ring">
+          <svg class="trust-svg" width="160" height="160" viewBox="0 0 160 160">
+            <circle class="trust-bg-circle" cx="80" cy="80" r="${r}"/>
+            <circle class="trust-fg-circle" cx="80" cy="80" r="${r}"
+              stroke="${color}" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${dash.toFixed(1)}"/>
+          </svg>
+          <div class="trust-num-wrap">
+            <span class="trust-num" style="color:${color}">${score}</span>
+            <span class="trust-lbl">/ 100</span>
+          </div>
+        </div>
+        <div class="trust-stats">
+          <div class="trust-stat">
+            <div class="ts-label">verdict</div>
+            <div class="ts-val" style="color:${isReal ? 'var(--green)' : 'var(--red)'}">
+              ${isReal ? '✅ Real' : '🚨 Fake'}
+            </div>
+          </div>
+          ${top.username ? `
+          <div class="trust-stat">
+            <div class="ts-label">top match</div>
+            <div class="ts-val">@${esc(top.username)}</div>
+          </div>
+          <div class="trust-stat">
+            <div class="ts-label">similarity</div>
+            <div class="ts-val" style="color:${scoreColor(top.match_percentage ?? 0)}">${top.match_percentage ?? '—'}%</div>
+          </div>` : ''}
+          <div class="trust-stat">
+            <div class="ts-label">platform</div>
+            <div class="ts-val" style="font-size:0.85rem">${esc(top.platform || '—')}</div>
+          </div>
+        </div>
+      </div>`;
+  } catch {
+    container.innerHTML = `<div class="err-box">⚠️ Cannot reach the API server. Please ensure the backend is running.</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'SCORE';
+  }
+}
+</script>
+</body>
+</html>
